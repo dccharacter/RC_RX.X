@@ -85,7 +85,22 @@
 #define SPBRGH_CALC ((uint8_t)(SPBRG_CALC >> 8))
 #define SPBRGL_CALC ((uint8_t)(SPBRG_CALC))
 
+#define MAX_MTR_VLTG_MV 4000l
 
+#define MIN_PLS_US 1150l
+#define MAX_PLS_US 1900l
+#define PLS_TRAVEL (MAX_PLS_US - MIN_PLS_US)
+
+#define THROTTLE chA
+#define AILERONE chB
+
+#define AIL_MID_POINT 1520l
+
+#define FSM_INIT    0
+#define FSM_HIGH_1  1
+#define FSM_LOW_1   2
+#define FSM_HIGH_2  3
+#define FSM_DIS     4
 
 void hw_config(void);
 
