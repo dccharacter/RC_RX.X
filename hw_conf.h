@@ -87,20 +87,29 @@
 
 #define MAX_MTR_VLTG_MV 4000l
 
-#define MIN_PLS_US 1150l
+#define MIN_PLS_US 1100l
 #define MAX_PLS_US 1900l
+#define NEUTRAL_PLS_US 1500l
+#define AIL_PRCT 25
 #define PLS_TRAVEL (MAX_PLS_US - MIN_PLS_US)
 
 #define THROTTLE chA
 #define AILERONE chB
-
-#define AIL_MID_POINT 1520l
 
 #define FSM_INIT    0
 #define FSM_HIGH_1  1
 #define FSM_LOW_1   2
 #define FSM_HIGH_2  3
 #define FSM_DIS     4
+
+#define OPM_CAL_MID 0
+#define OPM_CAL_MAX 1
+#define OPM_FSM     2
+#define OPM_FLGHT   3
+#define OPM_HALT    4
+#define OPM_INIT    5
+
+#define LED RB6
 
 void hw_config(void);
 

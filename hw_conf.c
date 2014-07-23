@@ -126,8 +126,11 @@ void hw_config(void)
 
     ANSA4 = 1;
     ADCON1bits.ADFM = 1; // 1 = right justified
-    ADCON1bits.ADCS = 1; // 1 = Fosc/8
+    ADCON1bits.ADCS = 0b010; // 1 = Fosc/8; 010 = Fosc/32
     ADCON1bits.ADNREF = 0; // VSS
     ADCON1bits.ADPREF = 0b11; // FVR
     ADCON0 =  0b00010011;
+
+    TRISB6 = 0;
+    RB6 = 0;
 }
