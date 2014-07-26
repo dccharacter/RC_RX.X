@@ -85,13 +85,24 @@
 #define SPBRGH_CALC ((uint8_t)(SPBRG_CALC >> 8))
 #define SPBRGL_CALC ((uint8_t)(SPBRG_CALC))
 
-#define MAX_MTR_VLTG_MV 4000l
+#define MAX_MTR_VLTG_MV 6000l
 
 #define MIN_PLS_US 1100l
 #define MAX_PLS_US 1900l
 #define NEUTRAL_PLS_US 1500l
-#define AIL_PRCT 25
-#define PLS_TRAVEL (MAX_PLS_US - MIN_PLS_US)
+
+
+/* Fly bar compensation. The top rotor is heavier, so it needs to be slowed down
+ * for lower rotor to be able to compensate the momentum.
+ * In persent (0-100)
+ */
+#define FLY_BAR_COMPENSATION 96
+
+/* Limiting heli rotation speed
+ * Percent of ailerone signal accounted for
+ */
+#define AIL_PRCT 30
+
 
 #define THROTTLE chA
 #define AILERONE chB
@@ -108,8 +119,19 @@
 #define OPM_FLGHT   3
 #define OPM_HALT    4
 #define OPM_INIT    5
+#define OPM_BAT_LOW 6
+
+#define BAT_LOW_VOLTAGE 7400
+#define BAT_EXTREME_VOLTAGE 7000
+
+/* Running average filter settings, num of samples
+ */
+#define CAL_FILTER 8l
+#define VBAT_FILTER 8l
 
 #define LED RB6
+#define LED_ON (LED=1)
+#define LED_OFF (LED=0)
 
 void hw_config(void);
 
