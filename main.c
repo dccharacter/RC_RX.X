@@ -39,6 +39,8 @@ ch_mes chA = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US,
 ch_mes chB = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, MIN_PLS_US, MAX_PLS_US};
 ch_mes chC = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US};
 
+uint16_t v_bat_sample;
+
 uint16_t getMaxCCPR(uint16_t bat_vltg);
 uint16_t get_Vbat(void);
 void apply_controls(uint16_t vbat, ch_mes * strct_thro, ch_mes * strct_ail);
@@ -130,7 +132,10 @@ void interrupt isr(void) {
             }
             IOCBF4 = 0;
         }
-
+    }
+    if (ADIE && ADIF) {
+        ADIF = 0;
+        v_bat_sample = (ADRESH << 8) + ADRESL;
     }
 }
 
@@ -144,12 +149,15 @@ uint16_t getMaxCCPR(uint16_t bat_vltg) {
 
 uint16_t get_Vbat(void) {
     static uint16_t v_bat_old;
-    uint16_t v_bat_new;
+    /*
+    // There's a bug in PIC16F1827 that gets ADC stuck and conversion never completes.
+    // That's how you lose your helicopter
     GO_nDONE = 1;
     while (!GO_nDONE);
     v_bat_new = (ADRESH << 8) + ADRESL;
     v_bat_new *= 13;
-    v_bat_old = (uint16_t) ((v_bat_old * (VBAT_FILTER - 1) + v_bat_new) / VBAT_FILTER);
+     */
+    v_bat_old = (uint16_t) ((v_bat_old * (VBAT_FILTER - 1) + (v_bat_sample * 13)) / VBAT_FILTER);
     return v_bat_old; // in mV !!! 13 is resistor devider ratio = (4700 + 390) / 390; sinse Vref = 1.024 and ADC is 10 bits, ADC count is the voltage in mV
 }
 

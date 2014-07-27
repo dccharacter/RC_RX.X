@@ -120,17 +120,21 @@ void hw_config(void)
     IOCBN = 0b00011010;
     IOCIE = 1;
     PEIE = 1;
-    GIE = 1;
+    
 
     T1CON = 0b00000001;
 
     ANSA4 = 1;
     ADCON1bits.ADFM = 1; // 1 = right justified
-    ADCON1bits.ADCS = 0b010; // 1 = Fosc/8; 010 = Fosc/32
+    ADCON1bits.ADCS = 0b101; // 1 = Fosc/8; 010 = Fosc/32; 101 = Fosc/16
     ADCON1bits.ADNREF = 0; // VSS
     ADCON1bits.ADPREF = 0b11; // FVR
     ADCON0 =  0b00010011;
+    ADIF = 0;
+    ADIE = 1;
 
-    TRISB6 = 0;
+    TRISB6 = 0; // LED
     RB6 = 0;
+
+    GIE = 1;
 }
