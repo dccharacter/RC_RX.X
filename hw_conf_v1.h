@@ -28,41 +28,44 @@
 #define ADC_Fosc_16 5
 #define ADC_Fosc_64 6
 
-#ifdef PWM_SERVO
-    #define _XTAL_FREQ 2000000L
-    #define OSC_SET OSC_2MHz
-    #define ADC_CLK ADC_Fosc_8
-#endif //#ifdef PWM_SERVO
-#ifdef PWM_DRV_CTRL
-    #define _XTAL_FREQ 16000000L
-    #define OSC_SET OSC_16MHz
-    #define ADC_CLK ADC_Fosc_64
-    #define PWM_FREQ 30000L
+
+#define _XTAL_FREQ 16000000L
+#define OSC_SET OSC_16MHz
+#define ADC_CLK ADC_Fosc_64
+#define PWM_FREQ 30000L
 /* Defining TMR2-4-6 Parameters to drive PWM with required frequency */
 
-    #define TMR_PRESC ((_XTAL_FREQ/(1024*PWM_FREQ)) + 1)
-    #define TMR_PRESC_SET 0b00
+#define TMR_PRESC ((_XTAL_FREQ/(1024*PWM_FREQ)) + 1)
+#define TMR_PRESC_SET 0b00
 
-    #if (TMR_PRESC>1)
-        #if (TMR_PRESC<4)
-            #define TMR_PRESC 4
-            #define TMR_PRESC_SET 0b01
-        #elif (TMR_PRESC<16)
-            #define TMR_PRESC 16
-            #define TMR_PRESC_SET 0b10
-        #elif (TMR_PRESC>64)
-            #error "Prescaler is out of range; Either lower Fosc or rise PWM frequency"
-        #else
-            #define TMR_PRESC 64
-            #define TMR_PRESC_SET 0b11
-        #endif
+#if (TMR_PRESC>1)
+    #if (TMR_PRESC<4)
+        #define TMR_PRESC 4
+        #define TMR_PRESC_SET 0b01
+    #elif (TMR_PRESC<16)
+        #define TMR_PRESC 16
+        #define TMR_PRESC_SET 0b10
+    #elif (TMR_PRESC>64)
+        #error "Prescaler is out of range; Either lower Fosc or rise PWM frequency"
+    #else
+        #define TMR_PRESC 64
+        #define TMR_PRESC_SET 0b11
     #endif
+#endif
 
-    #define TMR_PR_SET (_XTAL_FREQ/(4*PWM_FREQ*TMR_PRESC))
-#endif //#ifdef PWM_DRV_CTRL
+#define TMR0_FREQ (_XTAL_FREQ/4l) //Hz
+#define TMR0_ROLLOVER_FREQ   (TMR0_FREQ/256l) //Hz
+#define DSPL_UPDATE_FREQ    (2) //Hz
+#define UPDATE_DISPLAY_TMR0 (TMR0_ROLLOVER_FREQ/DSPL_UPDATE_FREQ)
+
+
+#define TMR_PR_SET (_XTAL_FREQ/(4*PWM_FREQ*TMR_PRESC))
+
 
 #define XTAL_FREQ_MHZ (_XTAL_FREQ/1000000L)
 #define TMR0_CONST (4/XTAL_FREQ_MHZ)
+
+#define I2C_TIMEOUT 1000
 
 /* Defining TMR1 parameters for it to overflow on 2.5 ms
  * TMR1 is driven with Fosc/4 (for CCP purposes we cannot run on Fosc, only Fosc/4)
@@ -80,7 +83,7 @@
  */
 
 
-#define USART_BAUDRATE 19200L
+#define USART_BAUDRATE 115200L
 #define SPBRG_CALC (((_XTAL_FREQ/USART_BAUDRATE)/4)-1)
 #define SPBRGH_CALC ((uint8_t)(SPBRG_CALC >> 8))
 #define SPBRGL_CALC ((uint8_t)(SPBRG_CALC))
@@ -96,12 +99,12 @@
  * for lower rotor to be able to compensate the momentum.
  * In persent (0-100)
  */
-#define FLY_BAR_COMPENSATION 96
+#define FLY_BAR_COMPENSATION 88
 
 /* Limiting heli rotation speed
  * Percent of ailerone signal accounted for
  */
-#define AIL_PRCT 30
+#define AIL_PRCT 3
 
 
 #define THROTTLE chA
@@ -129,7 +132,7 @@
 #define CAL_FILTER 8l
 #define VBAT_FILTER 8l
 
-#define LED RB6
+#define LED RA0
 #define LED_ON (LED=1)
 #define LED_OFF (LED=0)
 

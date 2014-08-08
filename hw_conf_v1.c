@@ -1,6 +1,6 @@
 #include <xc.h>
 #include <stdint.h>
-#include "hw_conf.h"
+#include "hw_conf_v1.h"
 #include "usart.h"
 
 void hw_config(void)
@@ -13,35 +13,57 @@ void hw_config(void)
 
     OPTION_REGbits.T0CS = 0; // Fosc/4 clock
     OPTION_REGbits.PSA = 1; // PRESC is not assigned to TMR0, so it's 1:1
+    TMR0IF = 0;
+    TMR0IE = 1;
     //OPTION_REGbits.PS = 0b000; //1:2 PRESC
 
     while (!OSCSTATbits.HFIOFS); //wait for HFIO
 
     //Pins setup
-    APFCON0 = 0b00011001;
+    APFCON0 = 0b10011001;
     APFCON1 = 0b0;
 
     ANSELA = 0;
     ANSELB = 0;
 
-    TRISB = 0b11111011;
+    TRISB = 0b11111111;
     TRISA = 0b11111111;
 
-    WPUB = 0b00011010; //RB1,3,4
+    WPUB = 0b11001000; //RB3,6,7 - inputs
 
     //USART setup
 
+    TRISB2 = 0;
     SPBRGH = SPBRGH_CALC;//0;
     SPBRGL = SPBRGL_CALC;//16;
     BRGH = 1;
     BRG16 = 1;
     SYNC = 0;
     TXEN = 1;
-    CREN = 1;
+    //CREN = 1;
     SPEN = 1;
     //RCIE = 1;
     RCIF = 0;
-    
+
+    /* MSSP1 config */
+    /* SSP1STATbits.SMP - In I2 C Master or Slave mode:
+     * 1 = Slew rate control disabled for standard speed mode (100 kHz and 1 MHz)
+     * 0 = Slew rate control enabled for high speed mode (400 kHz)
+     */
+    TRISB1 = 0;
+    TRISB4 = 0;
+    RB1 = 0;
+    RB4 = 0;
+    TRISB1 = 1;
+    TRISB4 = 1;
+    SSP1STATbits.SMP = 1; //0 = Slew rate control enabled for high speed mode (400 kHz)
+    SSP1STATbits.CKE = 0; // 1 = Enable input logic so that thresholds are compliant with SM bus™ specification
+    SSP1CON1bits.SSPM = 0b1000; // 1000 = I2C Master mode, clock = FOSC/(4 * (SSPxADD+1))
+    SSP1ADD = _XTAL_FREQ/(4*100000l) - 1; //400kHz
+    SSP1CON3bits.BOEN = 1; // Buffer overwrite
+    SSP1CON3bits.SDAHT = 0; //1 = Minimum of 300 ns hold time on SDAx after the falling edge of SCLx
+    SSP1CON1bits.SSPEN = 1;
+
     /* FVR config
      */
     FVRCONbits.CDAFVR = 0b01; // 01 = 1.024V, 10 = 2.048
@@ -61,11 +83,12 @@ void hw_config(void)
     CM1CON1bits.C1NCH = 0b10; // Connected to C12IN2-, i.e. RA2
     CM1CON0bits.C1POL = 1; // 1 = inverted polarity
     CM1CON0bits.C1ON = 1;
+    // TODO: Connect DAC
 
-    CM2CON1bits.C2PCH = 0b10; // Connected to FVR
+    /*CM2CON1bits.C2PCH = 0b10; // Connected to FVR
     CM2CON1bits.C2NCH = 0b11; // Connected to C12IN3-, i.e. RA3
     CM2CON0bits.C2POL = 1; // 1 = inverted polarity
-    CM2CON0bits.C2ON = 1;
+    CM2CON0bits.C2ON = 1;*/
 
 
     /* PWM config
@@ -79,11 +102,11 @@ void hw_config(void)
     CCP1CON = 0b10001101;
     CCP2CON = 0b10001101;
 
-    CCP1ASbits.CCP1AS = 0;//0b011; //eithe comparator 1 or 2 is high
+    CCP1ASbits.CCP1AS = 1;// C1 is high //0b011; //eithe comparator 1 or 2 is high
     CCP1ASbits.PSS1AC = 0;
     CCP1ASbits.PSS1BD = 0;
     PWM1CONbits.P1RSEN = 1; // 0 - no autorestart
-    CCP2ASbits.CCP2AS = 0;//0b011; //eithe comparator 1 or 2 is high
+    CCP2ASbits.CCP2AS = 1;// C1 is high //0b011; //eithe comparator 1 or 2 is high
     CCP2ASbits.PSS2AC = 0;
     CCP2ASbits.PSS2BD = 0;
     PWM2CONbits.P2RSEN = 1; // 0 - no autorestart
@@ -116,8 +139,8 @@ void hw_config(void)
      * RB3 -
      * RB4 -
      */
-    IOCBP = 0b00011010;
-    IOCBN = 0b00011010;
+    IOCBP = 0b11001000;
+    IOCBN = 0b11001000;
     IOCIE = 1;
     PEIE = 1;
     
@@ -132,9 +155,11 @@ void hw_config(void)
     ADCON0 =  0b00010011;
     ADIF = 0;
     ADIE = 1;
+    GO_nDONE = 1;
 
-    TRISB6 = 0; // LED
-    RB6 = 0;
+    RA0 = 0;
+    TRISA0 = 0; // LED
+    
 
     GIE = 1;
 }

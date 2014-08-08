@@ -16,6 +16,9 @@ char serialGetCh (void)
 
 void serialPutS (const char * txstr)
 {
+#ifndef UART
+    return;
+#endif
 	while (*txstr)
 	{
 		 serialPutCh(*txstr++);

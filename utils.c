@@ -1,7 +1,7 @@
 #include <xc.h>
 #include <stdint.h>
 #include "utils.h"
-#include "hw_conf.h"
+#include "main.h"
 
 #define GET_CCPRxL(pulse_width_in_us) ((((_XTAL_FREQ/TMR_PRESC)*pulse_width_in_us)/1000000L) >> 2)
 #define GET_CCPxCON54(pulse_width_in_us) ((((_XTAL_FREQ/TMR_PRESC)*pulse_width_in_us)/1000000L) & 0b11 )

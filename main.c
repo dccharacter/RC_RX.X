@@ -11,9 +11,10 @@
 #include <xc.h>
 #include <math.h>
 
-#include "hw_conf.h"
+#include "main.h"
 #include "usart.h"
 #include "utils.h"
+#include "ITG3200.h"
 
 
 __CONFIG(FOSC_INTOSC & CLKOUTEN_OFF & WDTE_OFF & PWRTE_OFF & PLLEN_OFF);
@@ -35,6 +36,8 @@ typedef struct {
     int16_t max_pls;
 } ch_mes;
 
+uint8_t updt_dspl = 0;
+
 ch_mes chA = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US};
 ch_mes chB = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, MIN_PLS_US, MAX_PLS_US};
 ch_mes chC = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US};
@@ -52,20 +55,37 @@ uint8_t ifFSMdisarmed(void);
 void blink_long(void);
 void blink_short(void);
 
+int16_t vals[4];
 /*
  * 
  */
 void main(void) {
     uint16_t v_bat;
 
+    __delay_ms(10);
     hw_config();
-    blink_long();
-    blink_long();
-#ifdef UART
-    serialPutS("\fHello!\r\nInitializing. Mode has been changed to INIT\r\n");
-#endif //#ifdef UART
+
+    ITG3200_InitTypeDef ITG3200_IintStruct;
+    ITG3200_IintStruct.ITG3200_DigitalLowPassFilterCfg = ITG3200_LPFBandwidth42Hz;
+    ITG3200_IintStruct.ITG3200_IrqConfig = 0;
+    ITG3200_IintStruct.ITG3200_PowerControl = 0 | ITG3200_CLKLPLLwX_GyroRef;
+    ITG3200_IintStruct.ITG3200_SampleRateDivider = 7;
+
+    serialPutS("\fReset\r\n");
+
+    ITG3200_Init(&ITG3200_IintStruct);
+
+    uint8_t dev_id;
+
     while (1) {
         v_bat = get_Vbat();
+        if (updt_dspl) {
+            ITG3200_GetMeasurements(vals);
+            //vals[0] =  ITG3200_ReadDevID();
+            sprintf(text_buf, "v %3u, x 0x%04x, y %3d, z %3d\r", v_bat, vals[0], vals[1], vals[2]);
+            serialPutS(text_buf);
+            vals[0] = 0x3e;
+        }
         switch (oper_mode) {
             case OPM_CAL_MID:
                 calibrate_neutral(&AILERONE);
@@ -76,10 +96,7 @@ void main(void) {
                 break;
             case OPM_FSM:
                 if (ifFSMdisarmed()) {
-#ifdef UART
-                    serialPutS("Mode has been changed to FLIGHT. Good luck!\r\n");
-#endif //#ifdef UART
-                    blink_long();
+                    //serialPutS("Mode has been changed to FLIGHT. Good luck!\r\n");
                     blink_long();
                     oper_mode = OPM_FLGHT;
                 }
@@ -92,10 +109,8 @@ void main(void) {
                 break;
             case OPM_INIT:
                 blink_short();
-#ifdef UART
-                serialPutS("Changing mode to FSM. Are you feeling safe?\r\n");
-                serialPutS("\tTo disarm FSM, turn THROTTLE stick to MIN\r\n");
-#endif //#ifdef UART
+                //serialPutS("Changing mode to FSM. Are you feeling safe?\r\n");
+                //serialPutS("\tTo disarm FSM, turn THROTTLE stick to MIN\r\n");
                 oper_mode = OPM_FSM;
                 break;
         }
@@ -107,13 +122,13 @@ void interrupt isr(void) {
     uint16_t tmr1_tmp;
     if (IOCIE && IOCIF) {
         tmr1_tmp = (TMR1H << 8) + TMR1L;
-        if (IOCBF1) {
-            if (RB1) {
+        if (IOCBF6) {
+            if (RB6) {
                 chA.cntr = tmr1_tmp;
             } else {
                 chA.pulse = (int16_t) ((tmr1_tmp - chA.cntr) / 4);
             }
-            IOCBF1 = 0;
+            IOCBF6 = 0;
         }
         if (IOCBF3) {
             if (RB3) {
@@ -123,19 +138,29 @@ void interrupt isr(void) {
             }
             IOCBF3 = 0;
         }
-        if (IOCBF4) {
-            if (RB4) {
+        if (IOCBF7) {
+            if (RB7) {
                 chC.cntr = tmr1_tmp;
             } else {
                 chC.pulse = (int16_t) ((tmr1_tmp - chC.cntr) / 4);
 
             }
-            IOCBF4 = 0;
+            IOCBF7 = 0;
         }
     }
     if (ADIE && ADIF) {
         ADIF = 0;
         v_bat_sample = (ADRESH << 8) + ADRESL;
+        GO_nDONE = 1;
+    }
+    if (TMR0IF && TMR0IE) {
+        TMR0IF = 0;
+        static uint16_t tmr0_cntr = 0;
+        if (tmr0_cntr++ >= UPDATE_DISPLAY_TMR0)
+        {
+            updt_dspl = 1;
+            tmr0_cntr = 0;
+        }
     }
 }
 
@@ -156,6 +181,7 @@ uint16_t get_Vbat(void) {
     while (!GO_nDONE);
     v_bat_new = (ADRESH << 8) + ADRESL;
     v_bat_new *= 13;
+    return v_bat_new;
      */
     v_bat_old = (uint16_t) ((v_bat_old * (VBAT_FILTER - 1) + (v_bat_sample * 13)) / VBAT_FILTER);
     return v_bat_old; // in mV !!! 13 is resistor devider ratio = (4700 + 390) / 390; sinse Vref = 1.024 and ADC is 10 bits, ADC count is the voltage in mV
@@ -168,7 +194,7 @@ void apply_controls(uint16_t v_bat, ch_mes * thro, ch_mes * ail) {
         //serialPutS("test");
         max_CCPRL_fast = (uint16_t) ((TMR_PR_SET * MAX_MTR_VLTG_MV) / v_bat);
     }
-    uint16_t max_CCPRL_slow = (long) max_CCPRL_fast * FLY_BAR_COMPENSATION / 100;
+    uint16_t max_CCPRL_slow = ((long) max_CCPRL_fast) * FLY_BAR_COMPENSATION / 100;
 
     uint16_t pwm_dc_l = 0;
     uint16_t pwm_dc_r = 0;
@@ -178,13 +204,14 @@ void apply_controls(uint16_t v_bat, ch_mes * thro, ch_mes * ail) {
     thro->pulse = chop_pulse(thro->pulse, thro->min_pls, thro->max_pls, thro->neutral);
     ail->pulse = chop_pulse(ail->pulse, ail->min_pls, ail->max_pls, ail->neutral);
 
-    thro_ac = thro->pulse - thro->min_pls;
-    if (thro_ac < 0) {
-        thro_ac = 0;
+    if (thro->pulse < thro->min_pls) {
+        thro->min_pls = thro->pulse;
     }
-    int16_t max_ail_amplitude = thro_ac / 2; // divide by two coz we only need half range of the throttle stick
+    thro_ac = thro->pulse - thro->min_pls;
+
+    int16_t max_ail_amplitude = thro_ac;
     int16_t ail_correction = ail->neutral - ail->pulse;
-    ail_correction = (int16_t) ((ail_correction * (long) max_ail_amplitude / (ail->neutral - ail->min_pls)) * AIL_PRCT / 100);
+    ail_correction = (int16_t) ( (ail_correction * (long) max_ail_amplitude * AIL_PRCT) / ((ail->neutral - ail->min_pls)*100));
 
 
     //pwm_dc_l = chop_pulse(thro->impulse_in_us + ail_correction, thro->min_pls, thro->max_pls, thro->neutral) - thro->min_pls;
@@ -198,8 +225,12 @@ void apply_controls(uint16_t v_bat, ch_mes * thro, ch_mes * ail) {
         pwm_dc_r = thro_ac + ail_correction;
     }
 
-    pwm_dc_l = (pwm_dc_l * (long) max_CCPRL_fast) / 1023;
-    pwm_dc_r = (pwm_dc_r * (long) max_CCPRL_slow) / 1023;
+    pwm_dc_l = (pwm_dc_l * (long) max_CCPRL_fast) / (thro->max_pls - thro->min_pls);
+    pwm_dc_r = (pwm_dc_r * (long) max_CCPRL_slow) / (thro->max_pls - thro->min_pls);
+    // TODO: solve this - why did I have 1023 in there???
+
+    //pwm_dc_l = (pwm_dc_l * (long) max_CCPRL_fast) / 1023;
+    //pwm_dc_r = (pwm_dc_r * (long) max_CCPRL_slow) / 1023;
 
 #ifdef ENABLE_MOTORS
     CCP1CONbits.DC1B = pwm_dc_l & 0b11;
@@ -209,8 +240,11 @@ void apply_controls(uint16_t v_bat, ch_mes * thro, ch_mes * ail) {
 #endif //#ifdef ENABLE_MOTORS
 
 #ifdef UART
-    sprintf(text_buf, "b: %u, th: %i, ac: %i, c1: %u, c2: %u\r\n", v_bat, ail->pulse, max_CCPRL_slow, pwm_dc_l, pwm_dc_r);
-    serialPutS(text_buf);
+    if (updt_dspl) {
+        updt_dspl = 0;
+        sprintf(text_buf, "th%iail%impw%urpw%ulpw%u\r\n", thro->pulse, ail->pulse, max_CCPRL_fast, pwm_dc_r, pwm_dc_l);
+        serialPutS(text_buf);
+    }
 #endif //#ifdef UART
 }
 
@@ -221,10 +255,11 @@ int16_t chop_pulse(int16_t pulse, int16_t min_val, int16_t max_val, int16_t neut
             return max_val;
         } else if (pulse < min_val) {
             return min_val;
+        } else {
+            return pulse;
         }
-    } else {
-        return neutral;
     }
+    return neutral;
 }
 
 void calibrate_neutral(ch_mes * strct_ch) {
@@ -267,26 +302,20 @@ uint8_t ifFSMdisarmed(void) {
         case FSM_INIT:
             if (THROTTLE.pulse < 1200) {
                 blink_short();
-#ifdef UART
                 serialPutS("\tAnd now to MAX\r\n");
-#endif //#ifdef UART
                 fail_safe_mode = FSM_LOW_1;
             }
             break;
         case FSM_LOW_1:
             if (THROTTLE.pulse > 1600) {
                 blink_short();
-#ifdef UART
                 serialPutS("\tAnd again to MIN\r\n CAUTION: After that FSM will be disarmed !!!!\r\n");
-#endif //#ifdef UART
                 fail_safe_mode = FSM_HIGH_2;
             }
             break;
         case FSM_HIGH_2:
             if (THROTTLE.pulse < 1200) {
-#ifdef UART
                 serialPutS("\tFSM disarmed\r\n");
-#endif //#ifdef UART
                 fail_safe_mode = FSM_DIS;
             }
             break;
@@ -298,15 +327,17 @@ uint8_t ifFSMdisarmed(void) {
 }
 
 void blink_long(void) {
+#ifndef OLS
     LED = 1;
     __delay_ms(1000);
     LED = 0;
-    __delay_ms(500);
+#endif
 }
 
 void blink_short(void) {
+#ifndef OLS
     LED = 1;
     __delay_ms(300);
     LED = 0;
-    __delay_ms(500);
+#endif
 }
