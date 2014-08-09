@@ -17,7 +17,7 @@
 #include "ITG3200.h"
 
 
-__CONFIG(FOSC_INTOSC & CLKOUTEN_OFF & WDTE_OFF & PWRTE_OFF & PLLEN_OFF);
+__CONFIG(FOSC_INTOSC & CLKOUTEN_OFF & WDTE_OFF & PWRTE_ON & PLLEN_OFF);
 
 uint8_t text_buf[100];
 
@@ -62,7 +62,6 @@ int16_t vals[4];
 void main(void) {
     uint16_t v_bat;
 
-    __delay_ms(10);
     hw_config();
 
     ITG3200_InitTypeDef ITG3200_IintStruct;
