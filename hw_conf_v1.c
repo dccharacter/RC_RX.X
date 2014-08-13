@@ -4,8 +4,7 @@
 #include "usart.h"
 #include "i2c.h"
 
-void hw_config(void)
-{
+void hw_config(void) {
     OSCCONbits.SPLLEN = 0;
     OSCCONbits.IRCF = OSC_SET;
     OSCCONbits.SCS = 0b10;
@@ -21,8 +20,19 @@ void hw_config(void)
     while (!OSCSTATbits.HFIOFS); //wait for HFIO
 
     //Pins setup
-    APFCON0 = 0b10011001;
-    APFCON1 = 0b0;
+    /* bit 7 - 0 = RX/DT function is on RB1, 1 = RX/DT function is on RB2
+     * bit 4 - 0 = P2B function is on RB7, 1 = P2B function is on RA6
+     * bit 3 - 0 = CCP2/P2A function is on RB6, 1 = CCP2/P2A function is on RA7
+     * bit 0 - 0 = CCP1/P1A function is on RB3, 1 = CCP1/P1A function is on RB0
+     */
+    APFCON0 = 0b00011001;
+#ifdef TEST_RX
+    /* RB2 - TX, RB1 - RX */
+    APFCON1 = 0b0; //0 = TX/CK function is on RB2
+#else
+    /* RB5 - TX, RB1 - RX */
+    APFCON1 = 0b1; //1 = TX/CK function is on RB5 (TX takes priority over RX)
+#endif //#ifndef TEST_RX
 
     ANSELA = 0;
     ANSELB = 0;
@@ -31,27 +41,6 @@ void hw_config(void)
     TRISA = 0b11111111;
 
     WPUB = 0b11001000; //RB3,6,7 - inputs
-
-    //USART setup
-
-    TRISB2 = 0;
-    SPBRGH = SPBRGH_CALC;//0;
-    SPBRGL = SPBRGL_CALC;//16;
-    BRGH = 1;
-    BRG16 = 1;
-    SYNC = 0;
-    TXEN = 1;
-    //CREN = 1;
-    SPEN = 1;
-    //RCIE = 1;
-    RCIF = 0;
-
-    /* MSSP1 config */
-    /* SSP1STATbits.SMP - In I2 C Master or Slave mode:
-     * 1 = Slew rate control disabled for standard speed mode (100 kHz and 1 MHz)
-     * 0 = Slew rate control enabled for high speed mode (400 kHz)
-     */
-    I2C_Configure();
 
     /* FVR config
      */
@@ -87,20 +76,19 @@ void hw_config(void)
      * Either comparator event would disable both P1 and P2 channels
      * No auto-resume is set
      */
-   
+#ifndef TEST_RX
     CCP1CON = 0b10001101;
     CCP2CON = 0b10001101;
 
-    CCP1ASbits.CCP1AS = 1;// C1 is high //0b011; //eithe comparator 1 or 2 is high
+    CCP1ASbits.CCP1AS = 1; // C1 is high //0b011; //eithe comparator 1 or 2 is high
     CCP1ASbits.PSS1AC = 0;
     CCP1ASbits.PSS1BD = 0;
     PWM1CONbits.P1RSEN = 1; // 0 - no autorestart
-    CCP2ASbits.CCP2AS = 1;// C1 is high //0b011; //eithe comparator 1 or 2 is high
+    CCP2ASbits.CCP2AS = 1; // C1 is high //0b011; //eithe comparator 1 or 2 is high
     CCP2ASbits.PSS2AC = 0;
     CCP2ASbits.PSS2BD = 0;
     PWM2CONbits.P2RSEN = 1; // 0 - no autorestart
 
-#ifdef PWM_DRV_CTRL
     PR2 = TMR_PR_SET;
     PR4 = TMR_PR_SET;
 
@@ -116,23 +104,49 @@ void hw_config(void)
     TMR2ON = 1;
     TMR4ON = 1;
 
-#endif //#ifdef PWM_DRV_CTRL
-
     TRISB0 = 0; //P1A
     TRISB5 = 0; //P2B
-    
+
     TRISA7 = 0; //P2A
     TRISA6 = 0; //P2B
+#endif //#ifndef TEST_RX
+
+    //USART setup
+
+    SPBRGH = SPBRGH_CALC; //0;
+    SPBRGL = SPBRGL_CALC; //16;
+    BRGH = 1;
+    BRG16 = 1;
+    SYNC = 0;
+    TXEN = 1;
+    SPEN = 1; 
+#ifdef TEST_RX
+    TRISB5 = 0;
+    CREN = 1;
+    RCIE = 1;
+    RCIF = 0;
+#else
+    TRISB2 = 0;
+#endif //#ifdef TEST_RX
+
+#ifndef TEST_RX
+    /* MSSP1 config */
+    /* SSP1STATbits.SMP - In I2 C Master or Slave mode:
+     * 1 = Slew rate control disabled for standard speed mode (100 kHz and 1 MHz)
+     * 0 = Slew rate control enabled for high speed mode (400 kHz)
+     */
+    I2C_Configure();
+#endif //#ifndef TEST_RX
 
     /* RB1 -
      * RB3 -
      * RB4 -
      */
-    IOCBP = 0b11001000;
-    IOCBN = 0b11001000;
+    IOCBP = 0b01001000;
+    IOCBN = 0b01001000;
     IOCIE = 1;
     PEIE = 1;
-    
+
 
     T1CON = 0b00000001;
 
@@ -141,14 +155,13 @@ void hw_config(void)
     ADCON1bits.ADCS = 0b101; // 1 = Fosc/8; 010 = Fosc/32; 101 = Fosc/16
     ADCON1bits.ADNREF = 0; // VSS
     ADCON1bits.ADPREF = 0b11; // FVR
-    ADCON0 =  0b00010011;
+    ADCON0 = 0b00010011;
     ADIF = 0;
-    ADIE = 1;
+    ADIE = 0;
     GO_nDONE = 1;
 
     RA0 = 0;
     TRISA0 = 0; // LED
-    
 
     GIE = 1;
 }

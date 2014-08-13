@@ -19,32 +19,40 @@
 
 __CONFIG(FOSC_INTOSC & CLKOUTEN_OFF & WDTE_OFF & PWRTE_ON & PLLEN_OFF);
 
-uint8_t text_buf[100];
+#define AXIS AXIS_Y
 
-uint8_t fail_safe_mode = FSM_INIT;
-uint8_t oper_mode = OPM_INIT;
+uint8_t text_buf[50];
 
-/* All pulses are in us
- *
- */
+typedef enum {
+    FSM_INIT = 0, FSM_HIGH_1, FSM_LOW_1, FSM_HIGH_2, FSM_DIS
+} fail_safe_mode;
+
+typedef enum {
+    OPM_CAL_MID = 0, OPM_CAL_MAX, OPM_FSM, OPM_FLGHT, OPM_HALT, OPM_INIT, OPM_BAT_LOW
+} operation_mode;
+
+fail_safe_mode fsm_mode = FSM_INIT;
+operation_mode oper_mode = OPM_INIT;
+
 typedef struct {
-    uint16_t cntr;
-    int16_t pulse;
-    int16_t prev_pulse;
-    int16_t neutral;
-    int16_t min_pls;
-    int16_t max_pls;
-} ch_mes;
+    uint32_t ival;
+    uint32_t err_filter;
+    uint32_t min;
+    uint32_t max;
+    int32_t err;
+    uint32_t out;
+    uint32_t ki;
+    uint32_t kp;
+    uint32_t kd;
+} REG_type;
+REG_type reg;
 
-uint8_t updt_dspl = 0;
-
-ch_mes chA = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US};
-ch_mes chB = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, MIN_PLS_US, MAX_PLS_US};
-ch_mes chC = {0, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US, NEUTRAL_PLS_US};
+uint8_t upd_disp_cntr = 0;
+uint8_t upd_adc_cntr = 0;
+uint8_t pid_disp_cntr = 0;
 
 uint16_t v_bat_sample;
 
-uint16_t getMaxCCPR(uint16_t bat_vltg);
 uint16_t get_Vbat(void);
 void apply_controls(uint16_t vbat, ch_mes * strct_thro, ch_mes * strct_ail);
 int16_t chop_pulse(int16_t pulse, int16_t min_val, int16_t max_val, int16_t neutral);
@@ -54,38 +62,39 @@ uint8_t ifSignalGood(int16_t signal);
 uint8_t ifFSMdisarmed(void);
 void blink_long(void);
 void blink_short(void);
+void PID_Init(REG_type *reg);
+uint16_t PID_Step(REG_type *reg_struct, int16_t err);
+void timeBaseRoutine(void);
 
-int16_t vals[4];
 /*
  * 
  */
 void main(void) {
-    uint16_t v_bat;
-
     hw_config();
-
-    ITG3200_InitTypeDef ITG3200_IintStruct;
-    ITG3200_IintStruct.ITG3200_DigitalLowPassFilterCfg = ITG3200_LPFBandwidth42Hz;
-    ITG3200_IintStruct.ITG3200_IrqConfig = 0;
-    ITG3200_IintStruct.ITG3200_PowerControl = 0 | ITG3200_CLKLPLLwX_GyroRef;
-    ITG3200_IintStruct.ITG3200_SampleRateDivider = 7;
-
-    serialPutS("\fReset\r\n");
-
-    ITG3200_Init(&ITG3200_IintStruct);
-
-    uint8_t dev_id;
-
+    uint16_t v_bat = 0;
+    PID_Init(&reg);
+    blink_long();
+    serialPutS("\fR\r\n");
     while (1) {
-        v_bat = get_Vbat();
-        if (updt_dspl) {
-            ITG3200_GetMeasurements(vals);
-            //vals[0] =  ITG3200_ReadDevID();
-            sprintf(text_buf, "v %3u, x 0x%04x, y %3d, z %3d\r", v_bat, vals[0], vals[1], vals[2]);
-            serialPutS(text_buf);
-            vals[0] = 0x3e;
-        }
+        timeBaseRoutine();
+
         switch (oper_mode) {
+            case OPM_FLGHT:
+                if (flags.upd_pid) {
+                    flags.upd_pid = 0;
+                    apply_controls(v_bat, &THROTTLE, &AILERONE);
+                }
+                break;
+            case OPM_HALT:
+                LED_ON;
+                IOCIE = 0; //this ideally should cut throttle and set ailerons to neutral;
+                break;
+            case OPM_INIT:
+                blink_short();
+                //serialPutS("Changing mode to FSM. Are you feeling safe?\r\n");
+                //serialPutS("\tTo disarm FSM, turn THROTTLE stick to MIN\r\n");
+                oper_mode = OPM_FSM;
+                break;
             case OPM_CAL_MID:
                 calibrate_neutral(&AILERONE);
                 break;
@@ -100,75 +109,64 @@ void main(void) {
                     oper_mode = OPM_FLGHT;
                 }
                 break;
-            case OPM_FLGHT:
-                apply_controls(v_bat, &THROTTLE, &AILERONE);
-                break;
-            case OPM_HALT:
-                while (1);
-                break;
-            case OPM_INIT:
-                blink_short();
-                //serialPutS("Changing mode to FSM. Are you feeling safe?\r\n");
-                //serialPutS("\tTo disarm FSM, turn THROTTLE stick to MIN\r\n");
-                oper_mode = OPM_FSM;
-                break;
         }
 
     }
 }
 
-void interrupt isr(void) {
-    uint16_t tmr1_tmp;
-    if (IOCIE && IOCIF) {
-        tmr1_tmp = (TMR1H << 8) + TMR1L;
-        if (IOCBF6) {
-            if (RB6) {
-                chA.cntr = tmr1_tmp;
-            } else {
-                chA.pulse = (int16_t) ((tmr1_tmp - chA.cntr) / 4);
-            }
-            IOCBF6 = 0;
-        }
-        if (IOCBF3) {
-            if (RB3) {
-                chB.cntr = tmr1_tmp;
-            } else {
-                chB.pulse = (int16_t) ((chB.pulse * (CAL_FILTER - 1) + ((tmr1_tmp - chB.cntr) / 4)) / CAL_FILTER);
-            }
-            IOCBF3 = 0;
-        }
-        if (IOCBF7) {
-            if (RB7) {
-                chC.cntr = tmr1_tmp;
-            } else {
-                chC.pulse = (int16_t) ((tmr1_tmp - chC.cntr) / 4);
-
-            }
-            IOCBF7 = 0;
-        }
+void timeBaseRoutine(void) {
+    if (!flags.time_base) {
+        return;
     }
-    if (ADIE && ADIF) {
-        ADIF = 0;
-        v_bat_sample = (ADRESH << 8) + ADRESL;
+
+    flags.time_base = 0;
+    if (upd_adc_cntr++ >= ADC_REFRESH_DIV) {
+        upd_adc_cntr = 0;
+        if (ADIF) {
+            ADIF = 0;
+            v_bat_sample = (ADRESH << 8) + ADRESL;
+        }
+        v_bat_sample = get_Vbat();
         GO_nDONE = 1;
     }
-    if (TMR0IF && TMR0IE) {
-        TMR0IF = 0;
-        static uint16_t tmr0_cntr = 0;
-        if (tmr0_cntr++ >= UPDATE_DISPLAY_TMR0)
-        {
-            updt_dspl = 1;
-            tmr0_cntr = 0;
+    if (upd_disp_cntr++ >= DISP_REFRESH_DIV) {
+        //uint16_t axs = ITG3200_ReadGyroAxis(AXIS);
+        //sprintf(text_buf, "reg: %i\r\n", axs);
+        //serialPutS(text_buf);
+        flags.upd_disp = 1;
+        upd_disp_cntr = 0;
+        CB_BytesInBuf(&usart_buf);
+        if (CB_BytesInBuf(&usart_buf) >= 4) {
+            uint8_t dt[4];
+            dt[0] = CB_ReadFromBuf(&usart_buf);
+            dt[1] = CB_ReadFromBuf(&usart_buf);
+            dt[2] = CB_ReadFromBuf(&usart_buf);
+            dt[3] = CB_ReadFromBuf(&usart_buf);
+            sprintf(text_buf, "%c%c%c%c", dt[0], dt[1], dt[2], dt[3]);
+            serialPutS(text_buf);
+            if (dt[3] == 'p' || dt[3] == 'P') {
+                switch (dt[0]) {
+                    case 'i':
+                        reg.ki = dt[2] + ((uint16_t)dt[1] << 8);
+                        break;
+                    case 'p':
+                        reg.kp = dt[2] + ((uint16_t)dt[1] << 8);
+                        break;
+                    case 'd':
+                        reg.kd = dt[2] + ((uint16_t)dt[1] << 8);
+                        break;
+                }
+            }
         }
+#ifdef TEST_RX
+        sprintf(text_buf, "p %i i %i d %i\r\n", (uint16_t)reg.kp, (uint16_t)reg.ki, (uint16_t)reg.kd);
+        serialPutS(text_buf);
+#endif
     }
-}
-
-uint16_t getMaxCCPR(uint16_t bat_vltg) {
-    /* Maximum PWM period is TMR_PR_SET - this corresponds to battery voltage
-     * We need to limit the voltage on motors to MAX_MTR_VLTG_MV
-     * Thus PWM period will be TMR_PR_SET * MAX_MTR_VLTG_MV / battery_voltage
-     */
-    return (uint16_t) ((TMR_PR_SET * MAX_MTR_VLTG_MV) / bat_vltg);
+    if (pid_disp_cntr++ >= PID_REFRESH_DIV) {
+        flags.upd_pid = 1;
+        pid_disp_cntr = 0;
+    }
 }
 
 uint16_t get_Vbat(void) {
@@ -187,61 +185,70 @@ uint16_t get_Vbat(void) {
 }
 
 void apply_controls(uint16_t v_bat, ch_mes * thro, ch_mes * ail) {
-    uint16_t max_CCPRL_fast = TMR_PR_SET;
+    uint16_t thro_ac = 0;
+    uint16_t pwm_dc_l = 0;
+    uint16_t pwm_dc_r = 0;
+    uint16_t max_CCPRL_fast = TMR_PR_SET << 2; //TMR is 8 bits and PWM is 10 bits, so we have to add 2 bits
+
+    v_bat = 7000;
 
     if (v_bat > MAX_MTR_VLTG_MV) {
         //serialPutS("test");
-        max_CCPRL_fast = (uint16_t) ((TMR_PR_SET * MAX_MTR_VLTG_MV) / v_bat);
+        max_CCPRL_fast = (uint16_t) ((max_CCPRL_fast * MAX_MTR_VLTG_MV) / v_bat);
     }
-    uint16_t max_CCPRL_slow = ((long) max_CCPRL_fast) * FLY_BAR_COMPENSATION / 100;
-
-    uint16_t pwm_dc_l = 0;
-    uint16_t pwm_dc_r = 0;
-
-    int16_t thro_ac = 0;
 
     thro->pulse = chop_pulse(thro->pulse, thro->min_pls, thro->max_pls, thro->neutral);
-    ail->pulse = chop_pulse(ail->pulse, ail->min_pls, ail->max_pls, ail->neutral);
-
     if (thro->pulse < thro->min_pls) {
         thro->min_pls = thro->pulse;
     }
     thro_ac = thro->pulse - thro->min_pls;
+    pwm_dc_l = (uint16_t) ((thro_ac * (long) max_CCPRL_fast) / (thro->max_pls - thro->min_pls));
+    reg.max = pwm_dc_l >> 1;
 
-    int16_t max_ail_amplitude = thro_ac;
-    int16_t ail_correction = ail->neutral - ail->pulse;
-    ail_correction = (int16_t) ( (ail_correction * (long) max_ail_amplitude * AIL_PRCT) / ((ail->neutral - ail->min_pls)*100));
+    int16_t gyro_axis = ITG3200_ReadGyroAxis(AXIS);
+    //ail->pulse = chop_pulse(ail->pulse, ail->min_pls, ail->max_pls, ail->neutral);
+    //int16_t ail_correction = ail->neutral - ail->pulse;
+
+    //gyro_axis -= (ail_correction * 6);
+
+    uint16_t corr = PID_Step(&reg, gyro_axis);
+    pwm_dc_r = (pwm_dc_l >> 1) + corr;
 
 
-    //pwm_dc_l = chop_pulse(thro->impulse_in_us + ail_correction, thro->min_pls, thro->max_pls, thro->neutral) - thro->min_pls;
-    //pwm_dc_r = chop_pulse(thro->impulse_in_us - ail_correction, thro->min_pls, thro->max_pls, thro->neutral) - thro->min_pls;
 
-    if (ail_correction > 0) {
+
+    //uint16_t max_CCPRL_slow = ((long) max_CCPRL_fast) * FLY_BAR_COMPENSATION / 100;
+
+    //int16_t max_ail_amplitude = thro_ac;
+    //int16_t ail_correction = ail->neutral - ail->pulse;
+    //ail_correction = (int16_t) ((ail_correction * (long) max_ail_amplitude * AIL_PRCT) / ((ail->neutral - ail->min_pls)*100));
+
+
+    /*if (ail_correction > 0) {
         pwm_dc_l = thro_ac - ail_correction;
         pwm_dc_r = thro_ac;
     } else {
         pwm_dc_l = thro_ac;
         pwm_dc_r = thro_ac + ail_correction;
-    }
+    }*/
 
-    pwm_dc_l = (pwm_dc_l * (long) max_CCPRL_fast) / (thro->max_pls - thro->min_pls);
-    pwm_dc_r = (pwm_dc_r * (long) max_CCPRL_slow) / (thro->max_pls - thro->min_pls);
+    //pwm_dc_r = (pwm_dc_r * (long) max_CCPRL_slow) / (thro->max_pls - thro->min_pls);
     // TODO: solve this - why did I have 1023 in there???
 
     //pwm_dc_l = (pwm_dc_l * (long) max_CCPRL_fast) / 1023;
     //pwm_dc_r = (pwm_dc_r * (long) max_CCPRL_slow) / 1023;
 
 #ifdef ENABLE_MOTORS
-    CCP1CONbits.DC1B = pwm_dc_l & 0b11;
-    CCPR1L = (uint8_t) pwm_dc_l;
-    CCP2CONbits.DC2B = pwm_dc_r & 0b11;
-    CCPR2L = (uint8_t) pwm_dc_r;
+    CCP1CONbits.DC1B = (uint8_t) (pwm_dc_l & 0b11);
+    CCPR1L = (uint8_t) (pwm_dc_l >> 2);
+    CCP2CONbits.DC2B = (uint8_t) (pwm_dc_r & 0b11);
+    CCPR2L = (uint8_t) (pwm_dc_r >> 2);
 #endif //#ifdef ENABLE_MOTORS
 
 #ifdef UART
-    if (updt_dspl) {
-        updt_dspl = 0;
-        sprintf(text_buf, "th%iail%impw%urpw%ulpw%u\r\n", thro->pulse, ail->pulse, max_CCPRL_fast, pwm_dc_r, pwm_dc_l);
+    if (flags.upd_disp) {
+        flags.upd_disp = 0;
+        sprintf(text_buf, "co %u th%i ai%i mpw%u rpw%u lpw%u\r\n", corr, thro->pulse, gyro_axis, max_CCPRL_fast, pwm_dc_r, pwm_dc_l);
         serialPutS(text_buf);
     }
 #endif //#ifdef UART
@@ -284,6 +291,12 @@ uint8_t ifSignalGood(int16_t signal) {
 }
 
 uint8_t ifFSMdisarmed(void) {
+    ITG3200_InitTypeDef ITG3200_IintStruct;
+    ITG3200_IintStruct.ITG3200_DigitalLowPassFilterCfg = ITG3200_LPFBandwidth42Hz;
+    ITG3200_IintStruct.ITG3200_IrqConfig = 0;
+    ITG3200_IintStruct.ITG3200_PowerControl = 0 | ITG3200_CLKLPLLwX_GyroRef;
+    ITG3200_IintStruct.ITG3200_SampleRateDivider = 7;
+
     if (oper_mode != OPM_FSM) {
         return 0;
     }
@@ -291,35 +304,33 @@ uint8_t ifFSMdisarmed(void) {
     calibrate_neutral(&AILERONE); //while in FAIL-SAFE mode constantly calibrating AILERONE midpoint with running average
     calibrate_extremes(&THROTTLE);
 
-    switch (fail_safe_mode) {
-            /*case FSM_INIT:
-                if (THROTTLE.impulse_in_us > 1600) {
-                    serialPutS("\tNow turn THROTTLE stick to min\r\n");
-                    fail_safe_mode = FSM_HIGH_1;
-                }
-                break;*/
+    switch (fsm_mode) {
         case FSM_INIT:
             if (THROTTLE.pulse < 1200) {
                 blink_short();
-                serialPutS("\tAnd now to MAX\r\n");
-                fail_safe_mode = FSM_LOW_1;
+                //serialPutS("\tto MAX\r\n");
+                fsm_mode = FSM_LOW_1;
             }
             break;
         case FSM_LOW_1:
             if (THROTTLE.pulse > 1600) {
                 blink_short();
-                serialPutS("\tAnd again to MIN\r\n CAUTION: After that FSM will be disarmed !!!!\r\n");
-                fail_safe_mode = FSM_HIGH_2;
+                serialPutS("Start cal\r\n");
+                ITG3200_SetRevPolarity(0, 0, 0);
+                ITG3200_Init(&ITG3200_IintStruct);
+                serialPutS("Done cal\r\n");
+                //serialPutS("\tto MIN\r\n CAUTION: FSM will be disarmed !!!!\r\n");
+                fsm_mode = FSM_HIGH_2;
             }
             break;
         case FSM_HIGH_2:
             if (THROTTLE.pulse < 1200) {
-                serialPutS("\tFSM disarmed\r\n");
-                fail_safe_mode = FSM_DIS;
+                //serialPutS("\tFSM disarmed\r\n");
+                fsm_mode = FSM_DIS;
             }
             break;
     }
-    if (fail_safe_mode == FSM_DIS) {
+    if (fsm_mode == FSM_DIS) {
         return 1;
     }
     return 0;
@@ -339,4 +350,50 @@ void blink_short(void) {
     __delay_ms(300);
     LED = 0;
 #endif
+}
+
+void PID_Init(REG_type *reg) {
+    reg->ival = 0;
+    reg->err_filter = 0;
+    reg->min = 0;
+    reg->max = 255;
+    reg->ki = PID_KOEFF_I;
+    reg->kp = PID_KOEFF_P;
+    reg->kd = PID_KOEFF_D;
+}
+
+uint16_t PID_Step(REG_type *reg, int16_t err) {
+    uint16_t res;
+    uint16_t diff;
+
+    reg->err = err;
+
+    //diff = err - (reg->err_filter >> 4); //Input filter+differentiator
+    //reg->err_filter += diff;
+    diff = err - reg->err_filter; //Input filter+differentiator
+#define FLT 8L
+    reg->err_filter = (reg->err_filter * (FLT - 1) + err) / FLT;
+
+    reg->ival += ((int32_t) err) * reg->ki;
+    res = reg->ival >> 16;
+
+    if (res < reg->min) {
+        res = reg->min;
+        reg->ival = ((int32_t) res) << 16;
+    } else if (res > reg->max) {
+        res = reg->max;
+        reg->ival = ((int32_t) res) << 16;
+    }
+
+    res += (((int32_t) err * reg->kp) >> 8)+(((int32_t) diff * reg->kd) >> 8);
+
+    if (res < reg->min) {
+        res = reg->min;
+    } else if (res > reg->max) {
+        res = reg->max;
+    }
+
+    reg->out = res;
+
+    return res;
 }

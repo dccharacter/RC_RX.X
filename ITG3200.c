@@ -1,6 +1,9 @@
+#include "xc.h"
+#include "main.h"
 #include "ITG3200.h"
 #include "i2c.h"
 #include "usart.h"
+
 
 void ITG3200_Init(ITG3200_InitTypeDef* itg3200) {
     uint8_t _Range = itg3200->ITG3200_DigitalLowPassFilterCfg | 0x18;
@@ -14,7 +17,7 @@ void ITG3200_Init(ITG3200_InitTypeDef* itg3200) {
     ITG3200_SetOffsets(0, 0, 0);
     ITG3200_SetRevPolarity(0, 0, 0);
 
-    //ITG3200_ZeroCalibrate(30, 300);
+    ITG3200_ZeroCalibrate(30, 2);
 }
 
 uint8_t ITG3200_ReadDevID() {
@@ -82,6 +85,7 @@ void ITG3200_ZeroCalibrate(unsigned int totSamples, unsigned int sampleDelayMS) 
     int tmpOffsets[] = {0, 0, 0};
 
     for (i = 0; i < totSamples; i++) {
+
         for (j = 0; j < sampleDelayMS; j++)
             for (k = 0; k < 1000; k++);
         ITG3200_ReadGyroRaw(&x, &y, &z);
@@ -102,4 +106,24 @@ void ITG3200_SetOffsets(int _Xoffset, int _Yoffset, int _Zoffset) {
     offsets[0] = _Xoffset;
     offsets[1] = _Yoffset;
     offsets[2] = _Zoffset;
+}
+
+int16_t ITG3200_ReadGyroAxis(AXES_type axis) {
+    uint8_t start_reg;
+    int *offset;
+    if (axis == AXIS_X) {
+        offset = offsets;
+        start_reg = 0x1D;
+    } else if (axis == AXIS_Z) {
+        offset = offsets + 2;
+        start_reg = 0x21;
+    } else {
+        offset = offsets + 1;
+        start_reg = 0x1F;
+    }
+    int16_t res;
+    uint8_t data[2];
+    I2C_ReadMultiRegs(ITG3200_READ, start_reg, 2, data);
+    res = (int16_t) (data[1] + (data[0] << 8)) + *offset;
+    return res;
 }

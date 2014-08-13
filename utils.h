@@ -12,9 +12,20 @@
 extern "C" {
 #endif
 
-void set_tmr2pwm_dc(uint16_t dc_in_us);
-void set_tmr4pwm_dc(uint16_t dc_in_us);
-void set_tmr6pwm_dc(uint16_t dc_in_us);
+#define CB_BUF_SIZE 8
+
+typedef struct {
+    uint8_t buf[CB_BUF_SIZE];
+    uint8_t idx_in;
+    uint8_t idx_out;
+} CB_STRUCT;
+
+CB_STRUCT usart_buf;
+
+uint8_t CB_IsEmpty(CB_STRUCT *cb_str);
+void CB_PutInBuf(CB_STRUCT *cb_str, uint8_t val);
+uint8_t  CB_ReadFromBuf(CB_STRUCT *cb_str);
+uint8_t CB_BytesInBuf(CB_STRUCT *cb_str);
 
 
 #ifdef	__cplusplus

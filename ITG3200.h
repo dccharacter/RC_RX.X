@@ -17,6 +17,9 @@ extern "C" {
 #define ITG3200_WRITE 0xD0
 #define ITG3200_READ 0xD1
 
+    typedef enum {AXIS_X, AXIS_Y, AXIS_Z} AXES_type;
+    AXES_type axes;
+
 typedef enum {
 	ITG3200_LPFBandwidth256Hz = 0,
 	ITG3200_LPFBandwidth188Hz = 1,
@@ -123,6 +126,7 @@ void ITG3200_SetOffsets(int _Xoffset, int _Yoffset, int _Zoffset);
 void ITG3200_ReadGyroRawCal(int *_GyroX, int *_GyroY, int *_GyroZ);
 void ITG3200_ReadGyroRaw(int *_GyroX, int *_GyroY, int *_GyroZ);
 void ITG3200_ZeroCalibrate(unsigned int totSamples, unsigned int sampleDelayMS);
+int16_t ITG3200_ReadGyroAxis(AXES_type axis);
 
 float gains[3];
 int offsets[3];

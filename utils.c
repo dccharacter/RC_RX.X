@@ -3,24 +3,27 @@
 #include "utils.h"
 #include "main.h"
 
-#define GET_CCPRxL(pulse_width_in_us) ((((_XTAL_FREQ/TMR_PRESC)*pulse_width_in_us)/1000000L) >> 2)
-#define GET_CCPxCON54(pulse_width_in_us) ((((_XTAL_FREQ/TMR_PRESC)*pulse_width_in_us)/1000000L) & 0b11 )
+#define CB_MASK (CB_BUF_SIZE - 1)
 
-void set_tmr2pwm_dc(uint16_t dc_in_us)
-{
-    CCPR2L = GET_CCPRxL(dc_in_us);
-    CCP2CONbits.DC2B = GET_CCPxCON54(dc_in_us);
+uint8_t CB_IsEmpty(CB_STRUCT *cb_str) {
+    return (cb_str->idx_in == cb_str->idx_out);
 }
 
-void set_tmr4pwm_dc(uint16_t dc_in_us)
-{
-    CCPR3L = GET_CCPRxL(dc_in_us);
-    CCP3CONbits.DC3B = GET_CCPxCON54(dc_in_us);
+void CB_PutInBuf(CB_STRUCT *cb_str, uint8_t val) {
+    cb_str->buf[cb_str->idx_in++] = val;
+    cb_str->idx_in &= CB_MASK;
 }
 
-void set_tmr6pwm_dc(uint16_t dc_in_us)
-{
-    CCPR4L = GET_CCPRxL(dc_in_us);
-    CCP4CONbits.DC4B = GET_CCPxCON54(dc_in_us);
+uint8_t CB_ReadFromBuf(CB_STRUCT *cb_str) {
+    uint8_t val = cb_str->buf[cb_str->idx_out++];
+    cb_str->idx_out &= CB_MASK;
+    return val;
 }
 
+uint8_t CB_BytesInBuf(CB_STRUCT *cb_str) {
+    if (cb_str->idx_in >= cb_str->idx_out) {
+        return (cb_str->idx_in - cb_str->idx_out);
+    } else {
+        return ((CB_BUF_SIZE -  cb_str->idx_out) + cb_str->idx_in);
+    }
+}

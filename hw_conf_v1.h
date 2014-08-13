@@ -55,9 +55,6 @@
 
 #define TMR0_FREQ (_XTAL_FREQ/4l) //Hz
 #define TMR0_ROLLOVER_FREQ   (TMR0_FREQ/256l) //Hz
-#define DSPL_UPDATE_FREQ    (2) //Hz
-#define UPDATE_DISPLAY_TMR0 (TMR0_ROLLOVER_FREQ/DSPL_UPDATE_FREQ)
-
 
 #define TMR_PR_SET (_XTAL_FREQ/(4*PWM_FREQ*TMR_PRESC))
 
@@ -110,27 +107,13 @@
 #define THROTTLE chA
 #define AILERONE chB
 
-#define FSM_INIT    0
-#define FSM_HIGH_1  1
-#define FSM_LOW_1   2
-#define FSM_HIGH_2  3
-#define FSM_DIS     4
-
-#define OPM_CAL_MID 0
-#define OPM_CAL_MAX 1
-#define OPM_FSM     2
-#define OPM_FLGHT   3
-#define OPM_HALT    4
-#define OPM_INIT    5
-#define OPM_BAT_LOW 6
-
 #define BAT_LOW_VOLTAGE 7400
 #define BAT_EXTREME_VOLTAGE 7000
 
 /* Running average filter settings, num of samples
  */
 #define CAL_FILTER 8l
-#define VBAT_FILTER 8l
+#define VBAT_FILTER 16l
 
 #define LED RA0
 #define LED_ON (LED=1)
