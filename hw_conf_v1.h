@@ -10,6 +10,10 @@
 
 #include <xc.h>
 
+//#define FLIGHT_RX
+#define FLIGHT_TX
+//#define TEST_RX
+
 #define PWM_DRV_CTRL
     #ifndef PWM_DRV_CTRL
         #define PWM_SERVO

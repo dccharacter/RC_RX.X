@@ -2,6 +2,7 @@
 #include "main.h"
 #include "utils.h"
 #include <xc.h>
+#include "hw_conf_v1.h"
 
 void interrupt isr(void) {
     uint16_t tmr1_tmp;
@@ -41,8 +42,10 @@ void interrupt isr(void) {
             tmr0_cntr = 0;
         }
     }
+#ifndef FLIGHT_TX
     if (RCIF) {
         RCIF = 0;
         CB_PutInBuf(&usart_buf, RCREG);
     }
+#endif //#ifndef FLIGHT_TX
 }

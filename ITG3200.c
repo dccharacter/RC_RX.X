@@ -6,12 +6,17 @@
 
 
 void ITG3200_Init(ITG3200_InitTypeDef* itg3200) {
-    uint8_t _Range = itg3200->ITG3200_DigitalLowPassFilterCfg | 0x18;
+    /*uint8_t _Range = itg3200->ITG3200_DigitalLowPassFilterCfg | 0x18;
 
     ITG3200_WriteRegister(0x15, itg3200->ITG3200_SampleRateDivider);
     ITG3200_WriteRegister(0x16, _Range);
     ITG3200_WriteRegister(0x3E, itg3200->ITG3200_PowerControl);
-    ITG3200_WriteRegister(0x17, itg3200->ITG3200_IrqConfig);
+    ITG3200_WriteRegister(0x17, itg3200->ITG3200_IrqConfig); */
+
+    ITG3200_WriteRegister(0x3E, 0x80);
+    ITG3200_WriteRegister(0x16, 0x1D);
+    ITG3200_WriteRegister(0x3E, 0x01);
+    __delay_ms(100);
 
     ITG3200_SetGains(1.8, 1.8, 1.8);
     ITG3200_SetOffsets(0, 0, 0);
@@ -68,9 +73,12 @@ void ITG3200_ReadGyro(float *_GyroX, float *_GyroY, float *_GyroZ) {
     int x, y, z;
 
     ITG3200_ReadGyroRawCal(&x, &y, &z); // x,y,z will contain calibrated integer values from the sensor
-    *_GyroX = (float) ((x / 14.375) * polarities[0] * gains[0]);
-    *_GyroY = (float) ((y / 14.375) * polarities[1] * gains[1]);
-    *_GyroZ = (float) ((z / 14.375) * polarities[2] * gains[2]);
+    //*_GyroX = (float) ((x * polarities[0] * gains[0]) / / 14.375);
+    //*_GyroY = (float) ((y / 14.375) * polarities[1] * gains[1]);
+    //*_GyroZ = (float) ((z / 14.375) * polarities[2] * gains[2]);
+    *_GyroX = (float)(x * polarities[0]);
+    *_GyroY = (float)(y * polarities[1]);
+    *_GyroZ = (float)(z * polarities[2]);
 }
 
 void ITG3200_SetRevPolarity(uint8_t _Xpol, uint8_t _Ypol, uint8_t _Zpol) {

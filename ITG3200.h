@@ -85,7 +85,7 @@ typedef struct {
 								0		ITG_RDY_EN	0		RAW_RDY_EN
 								*/
 
-	uint8_t ITG3200_PowerControl; /*!<Register 0x3E (62) – Power Management
+	  uint8_t ITG3200_PowerControl; /*!<Register 0x3E (62) – Power Management
 					This register is used to manage the power control,
 					select the clock source, and to issue a master reset to the device.
 					Setting the SLEEP bit in the register puts the device into very low

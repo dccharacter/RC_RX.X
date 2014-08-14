@@ -20,18 +20,20 @@ void hw_config(void) {
     while (!OSCSTATbits.HFIOFS); //wait for HFIO
 
     //Pins setup
-    /* bit 7 - 0 = RX/DT function is on RB1, 1 = RX/DT function is on RB2
+    /* APFCON0
+     * bit 7 - 0 = RX/DT function is on RB1, 1 = RX/DT function is on RB2
      * bit 4 - 0 = P2B function is on RB7, 1 = P2B function is on RA6
      * bit 3 - 0 = CCP2/P2A function is on RB6, 1 = CCP2/P2A function is on RA7
      * bit 0 - 0 = CCP1/P1A function is on RB3, 1 = CCP1/P1A function is on RB0
      */
-    APFCON0 = 0b00011001;
-#ifdef TEST_RX
+#ifdef TEST_RX  
     /* RB2 - TX, RB1 - RX */
+    APFCON0 = 0b00011001; //0 = RX/DT function is on RB1
     APFCON1 = 0b0; //0 = TX/CK function is on RB2
 #else
-    /* RB5 - TX, RB1 - RX */
-    APFCON1 = 0b1; //1 = TX/CK function is on RB5 (TX takes priority over RX)
+    /* RB2 - TX, RB2 - RX */
+    APFCON0 = 0b10011001; //1 = RX/DT function is on RB2
+    APFCON1 = 0b0; //1 = TX/CK function is on RB5, 0 = TX/CK function is on RB2 (TX takes priority over RX)
 #endif //#ifndef TEST_RX
 
     ANSELA = 0;
@@ -109,27 +111,7 @@ void hw_config(void) {
 
     TRISA7 = 0; //P2A
     TRISA6 = 0; //P2B
-#endif //#ifndef TEST_RX
 
-    //USART setup
-
-    SPBRGH = SPBRGH_CALC; //0;
-    SPBRGL = SPBRGL_CALC; //16;
-    BRGH = 1;
-    BRG16 = 1;
-    SYNC = 0;
-    TXEN = 1;
-    SPEN = 1; 
-#ifdef TEST_RX
-    TRISB5 = 0;
-    CREN = 1;
-    RCIE = 1;
-    RCIF = 0;
-#else
-    TRISB2 = 0;
-#endif //#ifdef TEST_RX
-
-#ifndef TEST_RX
     /* MSSP1 config */
     /* SSP1STATbits.SMP - In I2 C Master or Slave mode:
      * 1 = Slew rate control disabled for standard speed mode (100 kHz and 1 MHz)
@@ -137,6 +119,23 @@ void hw_config(void) {
      */
     I2C_Configure();
 #endif //#ifndef TEST_RX
+
+    //USART setup
+    SPBRGH = SPBRGH_CALC; //0;
+    SPBRGL = SPBRGL_CALC; //16;
+    BRGH = 1;
+    BRG16 = 1;
+    SYNC = 0;
+#ifndef FLIGHT_TX
+    CREN = 1;
+    RCIE = 1;
+    RCIF = 0;
+#endif
+#ifndef FLIGHT_RX
+    TRISB2 = 0;
+    TXEN = 1;
+#endif
+    SPEN = 1;
 
     /* RB1 -
      * RB3 -

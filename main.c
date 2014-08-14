@@ -15,6 +15,7 @@
 #include "usart.h"
 #include "utils.h"
 #include "ITG3200.h"
+#include "hw_conf_v1.h"
 
 
 __CONFIG(FOSC_INTOSC & CLKOUTEN_OFF & WDTE_OFF & PWRTE_ON & PLLEN_OFF);
@@ -135,6 +136,7 @@ void timeBaseRoutine(void) {
         //serialPutS(text_buf);
         flags.upd_disp = 1;
         upd_disp_cntr = 0;
+#ifndef FLIGHT_TX
         CB_BytesInBuf(&usart_buf);
         if (CB_BytesInBuf(&usart_buf) >= 4) {
             uint8_t dt[4];
@@ -158,9 +160,10 @@ void timeBaseRoutine(void) {
                 }
             }
         }
-#ifdef TEST_RX
-        sprintf(text_buf, "p %i i %i d %i\r\n", (uint16_t)reg.kp, (uint16_t)reg.ki, (uint16_t)reg.kd);
-        serialPutS(text_buf);
+#endif
+#ifndef FLIGHT_RX
+        //sprintf(text_buf, "p %i i %i d %i\r\n", (uint16_t)reg.kp, (uint16_t)reg.ki, (uint16_t)reg.kd);
+        //serialPutS(text_buf);
 #endif
     }
     if (pid_disp_cntr++ >= PID_REFRESH_DIV) {
@@ -203,16 +206,16 @@ void apply_controls(uint16_t v_bat, ch_mes * thro, ch_mes * ail) {
     }
     thro_ac = thro->pulse - thro->min_pls;
     pwm_dc_l = (uint16_t) ((thro_ac * (long) max_CCPRL_fast) / (thro->max_pls - thro->min_pls));
-    reg.max = pwm_dc_l >> 1;
+    reg.max = pwm_dc_l >> 3;
 
-    int16_t gyro_axis = ITG3200_ReadGyroAxis(AXIS);
+    int16_t gyro_axis = 0;//ITG3200_ReadGyroAxis(AXIS);
     //ail->pulse = chop_pulse(ail->pulse, ail->min_pls, ail->max_pls, ail->neutral);
     //int16_t ail_correction = ail->neutral - ail->pulse;
 
     //gyro_axis -= (ail_correction * 6);
 
     uint16_t corr = PID_Step(&reg, gyro_axis);
-    pwm_dc_r = (pwm_dc_l >> 1) + corr;
+    pwm_dc_r = pwm_dc_l - corr;
 
 
 
@@ -308,7 +311,7 @@ uint8_t ifFSMdisarmed(void) {
         case FSM_INIT:
             if (THROTTLE.pulse < 1200) {
                 blink_short();
-                //serialPutS("\tto MAX\r\n");
+                serialPutS("\tto MAX\r\n");
                 fsm_mode = FSM_LOW_1;
             }
             break;
@@ -319,13 +322,13 @@ uint8_t ifFSMdisarmed(void) {
                 ITG3200_SetRevPolarity(0, 0, 0);
                 ITG3200_Init(&ITG3200_IintStruct);
                 serialPutS("Done cal\r\n");
-                //serialPutS("\tto MIN\r\n CAUTION: FSM will be disarmed !!!!\r\n");
+                serialPutS("\tto MIN\r\n CAUTION: FSM will be disarmed !!!!\r\n");
                 fsm_mode = FSM_HIGH_2;
             }
             break;
         case FSM_HIGH_2:
             if (THROTTLE.pulse < 1200) {
-                //serialPutS("\tFSM disarmed\r\n");
+                serialPutS("\tFSM disarmed\r\n");
                 fsm_mode = FSM_DIS;
             }
             break;

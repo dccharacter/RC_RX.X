@@ -3,10 +3,10 @@
 #include "main.h"
 #include "usart.h"
 
-//#define I2C_DEBUG
+#define I2C_DEBUG
 
-#define FAILS 200
-uint8_t fail_counter;
+#define FAILS 20
+uint8_t fail_counter = 0;
 
 /* Local defenitions */
 void I2C_WaitIdle(void);
@@ -114,7 +114,7 @@ void I2C_GenerateSTOP(void) {
 
 void I2C_Configure(void) {
     SSP1CON1bits.SSPEN = 0;
-    __delay_ms(50);
+    //__delay_ms(50);
     TRISB1 = 0;
     TRISB4 = 0;
     RB1 = 0;
@@ -183,5 +183,5 @@ uint8_t I2C_ReadMultiRegs(uint8_t addr, uint8_t start_reg, uint8_t numbytes, uin
 }
 
 void I2C_Failure(void) {
-     I2C_Configure();
+    I2C_Configure();
 }
