@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include "hw_conf_v1.h"
 #include "usart.h"
-#include "i2c.h"
 
 void hw_config(void) {
     OSCCONbits.SPLLEN = 0;
@@ -44,6 +43,42 @@ void hw_config(void) {
 
     WPUB = 0b11001000; //RB3,6,7 - inputs
 
+<<<<<<< HEAD
+=======
+    //USART setup
+
+    TRISB2 = 0;
+    SPBRGH = SPBRGH_CALC;//0;
+    SPBRGL = SPBRGL_CALC;//16;
+    BRGH = 1;
+    BRG16 = 1;
+    SYNC = 0;
+    TXEN = 1;
+    //CREN = 1;
+    SPEN = 1;
+    //RCIE = 1;
+    RCIF = 0;
+
+    /* MSSP1 config */
+    /* SSP1STATbits.SMP - In I2 C Master or Slave mode:
+     * 1 = Slew rate control disabled for standard speed mode (100 kHz and 1 MHz)
+     * 0 = Slew rate control enabled for high speed mode (400 kHz)
+     */
+    TRISB1 = 0;
+    TRISB4 = 0;
+    RB1 = 0;
+    RB4 = 0;
+    TRISB1 = 1;
+    TRISB4 = 1;
+    SSP1STATbits.SMP = 1; //0 = Slew rate control enabled for high speed mode (400 kHz)
+    SSP1STATbits.CKE = 0; // 1 = Enable input logic so that thresholds are compliant with SM bus™ specification
+    SSP1CON1bits.SSPM = 0b1000; // 1000 = I2C Master mode, clock = FOSC/(4 * (SSPxADD+1))
+    SSP1ADD = _XTAL_FREQ/(4*100000l) - 1; //400kHz
+    SSP1CON3bits.BOEN = 1; // Buffer overwrite
+    SSP1CON3bits.SDAHT = 0; //1 = Minimum of 300 ns hold time on SDAx after the falling edge of SCLx
+    SSP1CON1bits.SSPEN = 1;
+
+>>>>>>> parent of 38c9c01... Redid i2c functions
     /* FVR config
      */
     FVRCONbits.CDAFVR = 0b01; // 01 = 1.024V, 10 = 2.048

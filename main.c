@@ -18,7 +18,7 @@
 #include "hw_conf_v1.h"
 
 
-__CONFIG(FOSC_INTOSC & CLKOUTEN_OFF & WDTE_OFF & PWRTE_ON & PLLEN_OFF);
+__CONFIG(FOSC_INTOSC & CLKOUTEN_OFF & WDTE_OFF & PWRTE_OFF & PLLEN_OFF);
 
 #define AXIS AXIS_Y
 
@@ -71,6 +71,12 @@ void timeBaseRoutine(void);
  * 
  */
 void main(void) {
+<<<<<<< HEAD
+=======
+    uint16_t v_bat;
+
+    __delay_ms(10);
+>>>>>>> parent of 38c9c01... Redid i2c functions
     hw_config();
     uint16_t v_bat = 0;
     PID_Init(&reg);
