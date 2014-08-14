@@ -4,6 +4,7 @@
 #include "usart.h"
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 #define I2C_DEBUG
 
 #define FAILS 20
@@ -11,11 +12,14 @@ uint8_t fail_counter = 0;
 
 =======
 >>>>>>> parent of 38c9c01... Redid i2c functions
+=======
+>>>>>>> parent of 38c9c01... Redid i2c functions
 /* Local defenitions */
 void I2C_WaitIdle(void);
 void I2C_Ack();
 void I2C_Nack();
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 void I2C_GenerateStart(void);
 void I2C_GenerateRestart(void);
@@ -36,6 +40,11 @@ uint16_t i2c_to;
 
 void I2C_Ack(void) {
 >>>>>>> parent of 38c9c01... Redid i2c functions
+=======
+uint16_t i2c_to;
+
+void I2C_Ack(void) {
+>>>>>>> parent of 38c9c01... Redid i2c functions
     SSP1CON2bits.ACKDT = 0;
     //I2C_WaitIdle();
     SSP1CON2bits.ACKEN = 1; 
@@ -43,10 +52,13 @@ void I2C_Ack(void) {
 
 void I2C_Nack(void) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 #ifdef I2C_DEBUG
     serialPutS("[_N]");
 #endif //#ifdef I2C_DEBUG
     I2C_WaitIdle();
+=======
+>>>>>>> parent of 38c9c01... Redid i2c functions
 =======
 >>>>>>> parent of 38c9c01... Redid i2c functions
     SSP1CON2bits.ACKDT = 1;
@@ -59,6 +71,7 @@ void I2C_WaitIdle(void) {
     if (SSP1CON1bits.SSPOV) {
 #ifdef I2C_DEBUG
         serialPutS("OVERFLOW\r\n");
+<<<<<<< HEAD
 <<<<<<< HEAD
 #endif //#ifdef I2C_DEBUG
         I2C_Failure();
@@ -74,6 +87,11 @@ void I2C_WaitIdle(void) {
     }
     while ((SSP1CON2 & 0x1F) || (SSP1STATbits.R_nW));*/
 >>>>>>> parent of 38c9c01... Redid i2c functions
+=======
+        while(1);
+    }
+    while ((SSP1CON2 & 0x1F) || (SSP1STATbits.R_nW));*/
+>>>>>>> parent of 38c9c01... Redid i2c functions
     /* wait for any pending transfer */
     while(!SSP1IF);
     SSP1IF = 0;
@@ -82,10 +100,13 @@ void I2C_WaitIdle(void) {
 uint8_t I2C_GetByte() {
     volatile unsigned char temp;
 <<<<<<< HEAD
+<<<<<<< HEAD
 #ifdef I2C_DEBUG
     serialPutS("[Rx]");
 #endif //#ifdef I2C_DEBUG
     I2C_WaitIdle();
+=======
+>>>>>>> parent of 38c9c01... Redid i2c functions
 =======
 >>>>>>> parent of 38c9c01... Redid i2c functions
     /* Reception works if transfer is initiated in read mode */
@@ -94,7 +115,10 @@ uint8_t I2C_GetByte() {
     //while (!SSP1STATbits.BF);
     temp = SSP1BUF; /* Read serial buffer and store in temp register */
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> parent of 38c9c01... Redid i2c functions
     I2C_Nack();
 >>>>>>> parent of 38c9c01... Redid i2c functions
     return temp; /* Return the read data from bus */
@@ -120,6 +144,7 @@ void I2C_MultiWrite(uint8_t * pBuffer) {
 }
 
 ACK_STATUS I2C_SendByte(uint8_t Byte) {
+<<<<<<< HEAD
 <<<<<<< HEAD
     ACK_STATUS result;
 #ifdef I2C_DEBUG
@@ -156,10 +181,26 @@ void I2C_GenerateStart(void) {
     return result;
 }
 
+=======
+    SSP1BUF = Byte;
+    I2C_WaitIdle();
+    ACK_STATUS result = SSP1CON2bits.ACKSTAT;
+    if (result) {
+        serialPutS("I2C error\r\n");
+    } else {
+        serialPutS("Sent OK\r\n");
+    }
+    return result;
+}
+
+>>>>>>> parent of 38c9c01... Redid i2c functions
 void I2C_GenerateStart(void) {   
         LED=1;
     __delay_us(5);
     LED=0;
+<<<<<<< HEAD
+>>>>>>> parent of 38c9c01... Redid i2c functions
+=======
 >>>>>>> parent of 38c9c01... Redid i2c functions
     SSP1CON2bits.SEN = 1;
     I2C_WaitIdle();
@@ -167,10 +208,13 @@ void I2C_GenerateStart(void) {
 
 void I2C_GenerateRestart(void) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 #ifdef I2C_DEBUG
     serialPutS("[R]");
 #endif //#ifdef I2C_DEBUG
     I2C_WaitIdle();
+=======
+>>>>>>> parent of 38c9c01... Redid i2c functions
 =======
 >>>>>>> parent of 38c9c01... Redid i2c functions
     SSP1CON2bits.RSEN = 1;
@@ -178,6 +222,7 @@ void I2C_GenerateRestart(void) {
 }
 
 void I2C_GenerateSTOP(void) {
+<<<<<<< HEAD
 <<<<<<< HEAD
 #ifdef I2C_DEBUG
     serialPutS("[P]");
@@ -259,6 +304,11 @@ uint8_t I2C_ReadMultiRegs(uint8_t addr, uint8_t start_reg, uint8_t numbytes, uin
 void I2C_Failure(void) {
     I2C_Configure();
 }
+=======
+    SSP1CON2bits.PEN = 1;
+    I2C_WaitIdle();
+}
+>>>>>>> parent of 38c9c01... Redid i2c functions
 =======
     SSP1CON2bits.PEN = 1;
     I2C_WaitIdle();

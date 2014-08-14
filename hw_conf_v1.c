@@ -78,6 +78,9 @@ void hw_config(void) {
     SSP1CON3bits.SDAHT = 0; //1 = Minimum of 300 ns hold time on SDAx after the falling edge of SCLx
     SSP1CON1bits.SSPEN = 1;
 
+<<<<<<< HEAD
+>>>>>>> parent of 38c9c01... Redid i2c functions
+=======
 >>>>>>> parent of 38c9c01... Redid i2c functions
     /* FVR config
      */

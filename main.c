@@ -76,6 +76,9 @@ void main(void) {
     uint16_t v_bat;
 
     __delay_ms(10);
+<<<<<<< HEAD
+>>>>>>> parent of 38c9c01... Redid i2c functions
+=======
 >>>>>>> parent of 38c9c01... Redid i2c functions
     hw_config();
     uint16_t v_bat = 0;
