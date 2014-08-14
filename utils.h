@@ -12,6 +12,9 @@
 extern "C" {
 #endif
 
+#include "hw_conf_v1.h"
+#ifndef FLIGHT_TX
+
 #define CB_BUF_SIZE 8
 
 typedef struct {
@@ -27,6 +30,7 @@ void CB_PutInBuf(CB_STRUCT *cb_str, uint8_t val);
 uint8_t  CB_ReadFromBuf(CB_STRUCT *cb_str);
 uint8_t CB_BytesInBuf(CB_STRUCT *cb_str);
 
+#endif //#ifdef FLIGHT_TX
 
 #ifdef	__cplusplus
 }

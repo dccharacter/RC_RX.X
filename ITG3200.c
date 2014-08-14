@@ -20,26 +20,20 @@ void ITG3200_Init(ITG3200_InitTypeDef* itg3200) {
 
     ITG3200_SetGains(1.8, 1.8, 1.8);
     ITG3200_SetOffsets(0, 0, 0);
-    ITG3200_SetRevPolarity(0, 0, 0);
+    ITG3200_SetRevPolarity(0, 1, 0);
 
     ITG3200_ZeroCalibrate(30, 2);
 }
 
 uint8_t ITG3200_ReadDevID() {
     uint8_t result = 0;
-    result = ITG3200_ReadRegister(0x00);
+    result = I2C_ReadReg(ITG3200_WRITE, 0);
     return result;
 }
 
 uint8_t ITG3200_ReadRegister(uint8_t reg) {
     uint8_t result = 0;
-    I2C_GenerateStart();
-    I2C_SendByte(ITG3200_WRITE);
-    I2C_SendByte(reg);
-    I2C_GenerateRestart();
-    I2C_SendByte(ITG3200_READ);
-    result = I2C_GetByte();
-    I2C_GenerateSTOP();
+    result = I2C_ReadReg(ITG3200_WRITE, reg);
     return result;
 }
 
@@ -49,13 +43,7 @@ uint8_t ITG3200_ReadRegister(uint8_t reg) {
  */
 void ITG3200_GetMeasurements(int16_t *values) {
     uint8_t temp[8];
-    I2C_GenerateStart();
-    I2C_SendByte(ITG3200_WRITE);
-    I2C_SendByte(0x1B);
-    I2C_GenerateRestart();
-    I2C_SendByte(ITG3200_READ);
-    I2C_MultiRead(temp, 8);
-    I2C_GenerateSTOP();
+    I2C_ReadMultiRegs(ITG3200_READ, 0x1B, 8, temp);
     values[0] = (int16_t) (temp[3] + (temp[2] << 8));
     values[1] = (int16_t) (temp[5] + (temp[4] << 8));
     values[2] = (int16_t) (temp[7] + (temp[6] << 8));
@@ -63,11 +51,7 @@ void ITG3200_GetMeasurements(int16_t *values) {
 }
 
 void ITG3200_WriteRegister( uint8_t reg, uint8_t value) {
-    I2C_GenerateStart();
-    I2C_SendByte(ITG3200_WRITE);
-    I2C_SendByte(reg);
-    I2C_SendByte(value);
-    I2C_GenerateSTOP();
+    I2C_WriteReg(ITG3200_WRITE, reg, value);
 }
 
 void ITG3200_ReadGyroRaw(int *_GyroX, int *_GyroY, int *_GyroZ) {
@@ -89,12 +73,9 @@ void ITG3200_ReadGyro(float *_GyroX, float *_GyroY, float *_GyroZ) {
     int x, y, z;
 
     ITG3200_ReadGyroRawCal(&x, &y, &z); // x,y,z will contain calibrated integer values from the sensor
-    //*_GyroX = (float) ((x * polarities[0] * gains[0]) / / 14.375);
-    //*_GyroY = (float) ((y / 14.375) * polarities[1] * gains[1]);
-    //*_GyroZ = (float) ((z / 14.375) * polarities[2] * gains[2]);
-    *_GyroX = (float)(x * polarities[0]);
-    *_GyroY = (float)(y * polarities[1]);
-    *_GyroZ = (float)(z * polarities[2]);
+    *_GyroX = (float) ((x * polarities[0] * gains[0]) / 14.375);
+    *_GyroY = (float) ((y * polarities[1] * gains[1]) / 14.375);
+    *_GyroZ = (float) ((z * polarities[2] * gains[2]) / 14.375);
 }
 
 void ITG3200_SetRevPolarity(uint8_t _Xpol, uint8_t _Ypol, uint8_t _Zpol) {

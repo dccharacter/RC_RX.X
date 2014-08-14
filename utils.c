@@ -5,6 +5,7 @@
 
 #define CB_MASK (CB_BUF_SIZE - 1)
 
+#ifndef FLIGHT_TX
 uint8_t CB_IsEmpty(CB_STRUCT *cb_str) {
     return (cb_str->idx_in == cb_str->idx_out);
 }
@@ -27,3 +28,4 @@ uint8_t CB_BytesInBuf(CB_STRUCT *cb_str) {
         return ((CB_BUF_SIZE -  cb_str->idx_out) + cb_str->idx_in);
     }
 }
+#endif //#ifdef FLIGHT_TX

@@ -12,7 +12,7 @@ void interrupt isr(void) {
             if (RB3) {
                 chB.cntr = tmr1_tmp;
             } else {
-                //chB.pulse = (int16_t) ((chB.pulse * (CAL_FILTER - 1) + ((tmr1_tmp - chB.cntr) / 4)) / CAL_FILTER);
+                chB.pulse = (int16_t) ((chB.pulse * (CAL_FILTER - 1) + ((tmr1_tmp - chB.cntr) / 4)) / CAL_FILTER);
             }
             IOCBF3 = 0;
         }

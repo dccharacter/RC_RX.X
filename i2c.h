@@ -21,13 +21,11 @@ extern "C" {
 #define ACK     0
 #define NACK    1
 
-void I2C_GenerateStart(void);
-void I2C_GenerateRestart(void);
-void I2C_GenerateSTOP(void);
-ACK_STATUS I2C_SendByte (uint8_t Byte);
-uint8_t I2C_GetByte(void);
-void I2C_MultiWrite(uint8_t * pBuffer);
-void I2C_MultiRead(uint8_t* pBuffer, uint16_t NumByteToRead);
+    uint8_t I2C_WriteReg(uint8_t addr, uint8_t reg, uint8_t val);
+    uint8_t I2C_WriteMultiRegs(uint8_t addr, uint8_t start_reg, uint8_t numbytes, uint8_t *data);
+    uint8_t I2C_ReadMultiRegs(uint8_t addr, uint8_t start_reg, uint8_t numbytes, uint8_t *data);
+    uint8_t I2C_ReadReg(uint8_t addr, uint8_t reg);
+    void I2C_Configure(void);
 
 #ifdef	__cplusplus
 }
